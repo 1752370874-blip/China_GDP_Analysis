@@ -633,9 +633,6 @@ http://localhost:8501
 
 - 省级行政区边界展示（灰色底图，保证轮廓完整）
 - 有数据的省份按 GDP 深浅着色，悬停可看 GDP、人均 GDP、排名、数据状态
-- **色标范围固定**为全部样本的 GDP 最小～最大值，筛选后同一省份颜色不变
-- **橙色描边表示估算数据**（中位数填补），白色描边表示原始观测值
-- 每个岛屿 / 离散区域单独绘制，不会出现跨岛屿的错误连线
 - 与左侧省份 / 区域 / GDP 区间筛选联动
 - 无数据省份保持灰色，**不会被误读为 GDP 为零**
 
@@ -673,6 +670,38 @@ main.py  →  data/processed/gdp_analysis.csv  →  app.py（只读，不写文�
 
 ---
 
+---
+
+## 15. 3.2：地图点击联动
+
+3.2 在原有省份、区域、GDP 区间、估算数据和 GDP TOP10 筛选之上，增加了地图点击选择。
+
+- 单击地图中有数据的省份，会同步更新左侧“选择省份”。
+- KPI 指标卡、GDP/人均 GDP 图、区域汇总、散点图、饼图、明细表和 CSV 下载都使用同一份筛选结果。
+- “清除地图选择（恢复原省份筛选）”只还原点击前的省份集合，不会改动区域、GDP 区间、TOP10 或估算数据开关。
+- 地图的 GDP 蓝色色标固定取完整教学样本的最小/最大值，所以筛选前后相同 GDP 的颜色含义一致。
+- 估算数据沿用橙色边框；当前候选集中没有数据的地图边界显示灰色；选中省份以深色边框强调。
+
+### 地图实现
+
+地图显示层将 GeoJSON 的 Polygon 和 MultiPolygon 外环转换为独立 SVG path。一个省份即使有多个离散岛屿，也会被拆成多个 shape，避免多段 Scatter 填充时可能出现的错误连接。
+
+Plotly 的 layout shape 本身不会向 Streamlit 发送选择事件，因此页面在它上方放置了透明的 Polygon 命中层和透明中心点。它们只承担点击与悬停，不参与着色。选择结果写入 Streamlit session_state 后，在下一次受控刷新开始前更新 multiselect；同一选择不会重复刷新，因此不会出现 rerun 循环。
+
+### 依赖版本
+
+本版本使用 Streamlit 的原生 Plotly 选择事件，需要 Streamlit 1.35 或更新版本。requirements.txt 已指定 streamlit>=1.35.0。若运行环境更旧，页面会保留地图和其他所有分析功能，并显示升级提示，而不会报错。
+
+### 运行
+
+1. 安装依赖：python -m pip install -r requirements.txt
+2. 生成分析数据：python main.py
+3. 启动页面：python -m streamlit run app.py
+
+详细验收清单见 VALIDATION_NOTES.md。
+
+---
+
 ## 附录：学习过程中的历史代码
 
 `_archive/` 文件夹用于保存学习过程中的中间脚本，不参与当前主程序运行。
@@ -698,3 +727,5 @@ data/raw/china_gdp.csv
 **主要技术：** Python、Pandas、NumPy、Matplotlib、Seaborn
 
 **项目目标：** 学习数据读取、清洗、统计分析、可视化和自动化报告生成。
+
+---

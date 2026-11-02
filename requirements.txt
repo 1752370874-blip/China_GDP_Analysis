@@ -1,6 +1,7 @@
-pandas
-numpy
-matplotlib
-seaborn
-streamlit
-plotly
+pandas>=2.0
+numpy>=1.24
+matplotlib>=3.7
+seaborn>=0.12
+# Streamlit 1.35 起支持 Plotly 的 on_select / selection_mode。
+streamlit>=1.35.0
+plotly>=5.18
