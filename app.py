@@ -10,6 +10,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.colors import sample_colorscale
 from pathlib import Path
 
 # ==========================================================
@@ -126,26 +127,39 @@ def normalize_province(name) -> str:
 
 
 @st.cache_data(show_spinner=False)
-def load_geojson(file_path: str) -> dict:
-    """读取 GeoJSON，并给每个 feature 补一个 map_key，用于和 GDP 数据匹配。"""
+def load_map_shapes(file_path: str):
+    """把 GeoJSON 转成 {省名: [(lons, lats), ...]}，并返回整体经纬度包围盒。"""
     with open(file_path, "r", encoding="utf-8") as file:
         geojson = json.load(file)
 
-    kept_features = []
+    shapes = {}
+    all_x, all_y = [], []
 
     for feature in geojson["features"]:
-        props = feature.get("properties", {})
-        map_key = normalize_province(props.get("name", ""))
-
-        # 没有名称的要素（例如九段线）不参与省份匹配
-        if not map_key:
+        name = normalize_province(feature["properties"].get("name", ""))
+        if not name:
             continue
 
-        props["map_key"] = map_key
-        kept_features.append(feature)
+        geometry = feature["geometry"]
+        polygons = (
+            [geometry["coordinates"]]
+            if geometry["type"] == "Polygon"
+            else geometry["coordinates"]
+        )
 
-    geojson["features"] = kept_features
-    return geojson
+        rings = []
+        for polygon in polygons:
+            outer = polygon[0]
+            xs = [point[0] for point in outer]
+            ys = [point[1] for point in outer]
+            rings.append((xs, ys))
+            all_x += xs
+            all_y += ys
+
+        shapes[name] = rings
+
+    bbox = (min(all_x), min(all_y), max(all_x), max(all_y))
+    return shapes, bbox
 
 
 # ==========================================================
@@ -440,6 +454,10 @@ st.divider()
 # ----------------------------------------------------------
 # 中国各省 GDP 地理分布
 # ----------------------------------------------------------
+# 说明：这里不用 go.Choropleth + geojson 匹配，而是把每个省的边界环
+# 转成 (lon, lat) 折线，用 Scatter + fill="toself" 画。
+# 原因：Choropleth 的 geojson 匹配在不同 plotly.js 版本下表现不一致，
+# 而多边形直绘只依赖坐标，行为稳定、可精确控制颜色和悬停内容。
 
 st.subheader("中国各省 GDP 地理分布")
 st.caption(
@@ -453,84 +471,116 @@ if not MAP_FILE.exists():
         "请将 china_provinces.geojson 放入 maps 文件夹。"
     )
 else:
-    geojson = load_geojson(str(MAP_FILE))
+    shapes, bbox = load_map_shapes(str(MAP_FILE))
 
-    all_map_keys = [
-        feature["properties"]["map_key"]
-        for feature in geojson["features"]
-    ]
-
-    matched = set(view["省份"]) & set(all_map_keys)
-    unmatched = sorted(set(view["省份"]) - set(all_map_keys))
+    map_provinces = set(shapes)
+    matched = [p for p in view["省份"] if p in map_provinces]
+    unmatched = sorted(set(view["省份"]) - map_provinces)
 
     fig_map = go.Figure()
 
-    # 第一层：全国省份灰色底图
-    # 目的：保证地图轮廓完整，同时不会把「没有数据」误读成「GDP 为零」
+    # 第一层：全国省份灰色底图，保证轮廓完整
+    base_x, base_y = [], []
+    for rings in shapes.values():
+        for xs, ys in rings:
+            base_x += xs + [None]
+            base_y += ys + [None]
+
     fig_map.add_trace(
-        go.Choropleth(
-            geojson=geojson,
-            locations=all_map_keys,
-            z=[1] * len(all_map_keys),
-            featureidkey="properties.map_key",
-            colorscale=[[0, "#E9EDF2"], [1, "#E9EDF2"]],
-            showscale=False,
-            marker_line_color="#FFFFFF",
-            marker_line_width=0.8,
+        go.Scatter(
+            x=base_x,
+            y=base_y,
+            mode="lines",
+            fill="toself",
+            fillcolor="#E9EDF2",
+            line=dict(color="#FFFFFF", width=0.5),
             hoverinfo="skip",
-            name="无数据",
+            showlegend=False,
         )
     )
 
     # 第二层：有数据的省份按 GDP 着色
     if matched:
-        map_df = view[view["省份"].isin(matched)].sort_values("GDP")
+        gdp_min = float(view["GDP"].min())
+        gdp_max = float(view["GDP"].max())
+        span = (gdp_max - gdp_min) or 1.0
 
+        for _, row in view[view["省份"].isin(matched)].sort_values("GDP").iterrows():
+            ratio = (row["GDP"] - gdp_min) / span
+            color = sample_colorscale("Blues", [0.15 + 0.8 * ratio])[0]
+
+            xs_list, ys_list = [], []
+            for xs, ys in shapes[row["省份"]]:
+                xs_list += xs + [None]
+                ys_list += ys + [None]
+
+            fig_map.add_trace(
+                go.Scatter(
+                    x=xs_list,
+                    y=ys_list,
+                    mode="lines",
+                    fill="toself",
+                    fillcolor=color,
+                    line=dict(color="#FFFFFF", width=0.8),
+                    showlegend=False,
+                    hovertemplate=(
+                        f"<b>{row['省份']}</b><br>"
+                        f"GDP：{row['GDP']:,.0f} 亿元<br>"
+                        f"人均 GDP：{row['人均GDP']:.2f} 万元/人<br>"
+                        f"排名：{int(row['GDP排名'])}<br>"
+                        f"数据状态：{row['数据状态']}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+        # 颜色条：借一条不可见的散点 trace 生成
         fig_map.add_trace(
-            go.Choropleth(
-                geojson=geojson,
-                locations=map_df["省份"],
-                z=map_df["GDP"],
-                featureidkey="properties.map_key",
-                colorscale="Blues",
-                showscale=True,
-                colorbar=dict(
-                    title="GDP（亿元）",
-                    thickness=14,
-                    len=0.65,
+            go.Scatter(
+                x=[None],
+                y=[None],
+                mode="markers",
+                marker=dict(
+                    size=0,
+                    opacity=0,
+                    color=[gdp_min, gdp_max],
+                    colorscale="Blues",
+                    cmin=gdp_min,
+                    cmax=gdp_max,
+                    showscale=True,
+                    colorbar=dict(title="GDP（亿元）", thickness=14, len=0.65),
                 ),
-                marker_line_color="#FFFFFF",
-                marker_line_width=0.8,
-                customdata=map_df[
-                    ["省份", "人均GDP", "GDP排名", "数据状态"]
-                ].values,
-                hovertemplate=(
-                    "<b>%{customdata[0]}</b><br>"
-                    "GDP：%{z:,.0f} 亿元<br>"
-                    "人均 GDP：%{customdata[1]:.2f} 万元/人<br>"
-                    "排名：%{customdata[2]}<br>"
-                    "数据状态：%{customdata[3]}"
-                    "<extra></extra>"
-                ),
+                hoverinfo="skip",
+                showlegend=False,
             )
         )
 
-    # 让地图自动适配边界范围，并隐藏经纬度坐标轴
-    fig_map.update_geos(fitbounds="locations", visible=False)
+    # 视窗固定在中国大陆范围：南海诸岛的细长多边形若不裁掉，
+    # 会在图底部画出一条不自然的横线
+    fig_map.update_xaxes(
+        visible=False,
+        range=[73, 136],
+        fixedrange=True,
+    )
+    fig_map.update_yaxes(
+        visible=False,
+        range=[17, 54],
+        scaleanchor="x",
+        scaleratio=1,
+        fixedrange=True,
+    )
     fig_map.update_layout(
         height=560,
         margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
         showlegend=False,
     )
 
     st.plotly_chart(fig_map, width="stretch")
 
     if unmatched:
-        st.caption(
-            f"以下省份在当前地图文件中没有匹配到边界：{'、'.join(unmatched)}"
-        )
-
-st.divider()
+        st.caption(f"以下省份在当前地图文件中没有匹配到边界：{'、'.join(unmatched)}")
 
 # ==========================================================
 # 11. 数据表格与导出
