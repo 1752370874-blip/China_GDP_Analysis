@@ -136,7 +136,7 @@ streamlit
 plotly
 ```
 
-前四个是 `main.py` 用到的库；`streamlit` 和 `plotly` 供 `app.py` 的交互式看板使用（详见第 9 节）。
+前四个是 `main.py` 用到的库；`streamlit` 和 `plotly` 供 `app.py` 的交互式看板使用（详见第 13 节）。
 
 检查 Python 解释器：
 
@@ -174,7 +174,7 @@ python main.py
 python -m streamlit run app.py
 ```
 
-终端会打印 `Local URL: http://localhost:8501`，用浏览器打开即可；关闭时在 Terminal 按 `Ctrl + C`。详细说明见第 9 节。
+终端会打印 `Local URL: http://localhost:8501`，用浏览器打开即可；关闭时在 Terminal 按 `Ctrl + C`。详细说明见第 13 节。
 
 ## 4. 数据格式与单位
 
@@ -430,43 +430,7 @@ df["GDP占比"] = (
 
 > 图表由当前输入数据生成，重新运行 `main.py` 会覆盖。正式研究时应替换为可靠的官方统计数据。
 
-## 9. 交互式看板（app.py）
-
-除了生成静态图表，项目还提供一个基于 **Streamlit + Plotly** 的网页看板，可以在浏览器里筛选、对照和导出数据。
-
-### 9.1 启动
-
-```bash
-python -m streamlit run app.py
-```
-
-启动成功后终端会打印：
-
-```text
-Local URL: http://localhost:8501
-```
-
-用浏览器打开该地址即可；关闭时在 Terminal 按 `Ctrl + C`。
-
-> 前提：`data/processed/gdp_analysis.csv` 必须存在（先运行一次 `python main.py`）。如果文件不存在，页面会直接给出提示，而不是抛出一堆红字报错。
-
-### 9.2 页面能做什么
-
-- **侧边栏筛选**：省份多选、GDP 区间拖动、是否包含「估算值」（中位数填补的记录）
-- **顶部指标卡**：省份数量、GDP 总量、平均 GDP、GDP 第一名
-- **四张交互图**（Plotly，可悬停看数值、框选缩放、下载图片）：GDP 总量排名、人均 GDP、GDP-人口散点、GDP 占比环形图
-- **明细表格**：带列格式（亿元 / 万元每人 / 百分比）和排序
-- **一键导出**：把当前筛选结果下载为 CSV
-
-### 9.3 与 main.py 的关系
-
-```text
-main.py  →  data/processed/gdp_analysis.csv  →  app.py
-```
-
-`app.py` **只读取**分析结果文件，不重新清洗数据，也不会修改或覆盖原始 CSV。想更新看板数据，重新运行 `main.py` 后刷新页面即可。
-
-## 10. 输出文件
+## 9. 输出文件
 
 成功运行一次 `main.py` 后，程序会生成以下文件：
 
@@ -485,7 +449,7 @@ main.py  →  data/processed/gdp_analysis.csv  →  app.py
 ![GDP排名](../charts/gdp_ranking.png)
 ```
 
-## 11. 一次实际运行的结果
+## 10. 一次实际运行的结果
 
 使用项目内的教学示例数据运行：
 
@@ -505,7 +469,75 @@ main.py  →  data/processed/gdp_analysis.csv  →  app.py
 
 这些结果仅用于展示程序运行情况，不代表真实经济统计结论。
 
-## 12. GitHub 图片显示规则
+## 11. 数据说明与项目局限性
+
+本项目目前属于 Python 数据分析教学项目，存在以下限制：
+
+1. 数据为教学示例数据，并非官方统计数据。
+2. GDP 缺失值使用中位数填补，可能影响排名和统计结果。
+3. 样本省份数量有限，不能代表全国经济情况。
+4. 人均 GDP 不能替代居民收入、生活成本或发展质量等指标。
+5. GDP 与人口之间的关系不能仅凭散点图推断因果关系。
+6. 不同年份、不同统计口径的数据不能直接混合比较。
+
+未来使用真实统计数据时，应注明：
+
+- 数据来源；
+- 统计年份；
+- 发布日期；
+- 数据单位；
+- 人口统计口径；
+- GDP 核算口径；
+- 缺失值处理方法。
+
+## 12. 发布到 GitHub
+
+### 12.1 初始化仓库
+
+在项目根目录打开 Terminal：
+
+```bash
+git init
+```
+
+### 12.2 添加文件
+
+```bash
+git add -A
+```
+
+### 12.3 提交代码
+
+```bash
+git commit -m "init: 中国各省 GDP 数据分析（教学项目）"
+```
+
+### 12.4 关联 GitHub 仓库
+
+```bash
+git remote add origin https://github.com/<你的用户名>/China_GDP_Analysis.git
+```
+
+### 12.5 推送代码
+
+```bash
+git branch -M main
+git push -u origin main
+```
+
+### 12.6 文件管理建议
+
+`.gitignore` 建议排除：
+
+- `.venv/`
+- `.idea/`
+- `__pycache__/`
+- `*.pyc`
+- 本地临时文件。
+
+保留项目源码、README、依赖文件、原始教学数据，以及需要展示的图表（见 12.7 节）。
+
+### 12.7 图片如何显示在 GitHub 上
 
 README 里的图片要能在 GitHub 上显示，必须同时满足三个条件，缺一不可：
 
@@ -527,7 +559,7 @@ output/charts/*
 
 这样既不会被一堆临时图污染仓库，又能保证 README 里的三张图始终可用。
 
-### 自查三步
+#### 自查三步
 
 ```bash
 # 1) 图片是否已进入版本库（应列出三张 png）
@@ -552,75 +584,45 @@ git push
 
 > 提示：`git add -f` 可以绕过忽略规则强制加入，但之后每次重新生成图表都要再 `git add` 一次。长期做法还是像本项目一样在 `.gitignore` 里加白名单。
 
-## 13. 数据说明与项目局限性
+## 13. 交互式数据分析网页
 
-本项目目前属于 Python 数据分析教学项目，存在以下限制：
+本项目使用 Streamlit 和 Plotly 开发了交互式 GDP 数据分析平台。
 
-1. 数据为教学示例数据，并非官方统计数据。
-2. GDP 缺失值使用中位数填补，可能影响排名和统计结果。
-3. 样本省份数量有限，不能代表全国经济情况。
-4. 人均 GDP 不能替代居民收入、生活成本或发展质量等指标。
-5. GDP 与人口之间的关系不能仅凭散点图推断因果关系。
-6. 不同年份、不同统计口径的数据不能直接混合比较。
+### 功能
 
-未来使用真实统计数据时，应注明：
+- 各省 GDP 排名查询
+- 人均 GDP 对比
+- GDP 占比分析
+- 省份多选筛选
+- GDP 与人口关系分析
+- 分析数据 CSV 下载
+- 估算数据标记与排除
 
-- 数据来源；
-- 统计年份；
-- 发布日期；
-- 数据单位；
-- 人口统计口径；
-- GDP 核算口径；
-- 缺失值处理方法。
-
-## 14. 发布到 GitHub
-
-### 14.1 初始化仓库
-
-在项目根目录打开 Terminal：
+### 安装依赖
 
 ```bash
-git init
+pip install -r requirements.txt
 ```
 
-### 14.2 添加文件
+### 启动网页
 
 ```bash
-git add -A
+python -m streamlit run app.py
 ```
 
-### 14.3 提交代码
+### 本地访问
 
-```bash
-git commit -m "init: 中国各省 GDP 数据分析（教学项目）"
+http://localhost:8501
+
+注意：网页读取 `data/processed/gdp_analysis.csv`，运行网页之前需要先运行 `main.py`。
+
+启动后终端会打印 `Local URL`，用浏览器打开即可；关闭时在 Terminal 按 `Ctrl + C`。
+
+```text
+main.py  →  data/processed/gdp_analysis.csv  →  app.py（只读，不写文件）
 ```
 
-### 14.4 关联 GitHub 仓库
-
-```bash
-git remote add origin https://github.com/<你的用户名>/China_GDP_Analysis.git
-```
-
-### 14.5 推送代码
-
-```bash
-git branch -M main
-git push -u origin main
-```
-
-### 14.6 文件管理建议
-
-`.gitignore` 建议排除：
-
-- `.venv/`
-- `.idea/`
-- `__pycache__/`
-- `*.pyc`
-- 本地临时文件。
-
-保留项目源码、README、依赖文件、原始教学数据，以及需要展示的图表（见第 12 节）。
-
-## 15. 下一步改进方向
+## 14. 下一步改进方向
 
 本项目可以继续从以下方面升级：
 
