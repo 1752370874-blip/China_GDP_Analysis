@@ -38,6 +38,7 @@
 10. 使用 Python 函数和模块化思想组织程序。
 11. 使用 `main.py` 一键执行整个分析流程。
 12. 自动生成 Markdown 数据分析报告。
+13. 用 Streamlit + Plotly 把结果做成可交互的网页看板。
 
 ## 2. 项目结构
 
@@ -65,6 +66,7 @@ China_GDP_Analysis/
 │   └── 学习过程中的历史代码
 │
 ├── main.py
+├── app.py                            # Streamlit 交互式看板
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -79,7 +81,8 @@ China_GDP_Analysis/
 | output/charts/ | 保存数据可视化图表 |
 | output/reports/ | 保存自动生成的分析报告 |
 | _archive/ | 保存学习过程中产生的历史代码 |
-| main.py | 项目主程序 |
+| main.py | 项目主程序（清洗 → 分析 → 出图 → 报告） |
+| app.py | Streamlit 交互式看板，读取 main.py 的分析结果 |
 | requirements.txt | 项目依赖清单 |
 | .gitignore | Git 文件忽略规则 |
 | README.md | 项目说明文档 |
@@ -133,7 +136,7 @@ streamlit
 plotly
 ```
 
-前四个是当前 `main.py` 实际用到的库；`streamlit` 和 `plotly` 是为下一步「交互式数据看板」预留的依赖，目前还没有脚本使用它们（详见第 14 节）。
+前四个是 `main.py` 用到的库；`streamlit` 和 `plotly` 供 `app.py` 的交互式看板使用（详见第 9 节）。
 
 检查 Python 解释器：
 
@@ -164,6 +167,14 @@ python main.py
 ```
 
 程序将自动完成数据读取、清洗、分析、可视化和报告生成。
+
+### 3.6 启动交互式看板（可选）
+
+```bash
+python -m streamlit run app.py
+```
+
+终端会打印 `Local URL: http://localhost:8501`，用浏览器打开即可；关闭时在 Terminal 按 `Ctrl + C`。详细说明见第 9 节。
 
 ## 4. 数据格式与单位
 
@@ -419,7 +430,43 @@ df["GDP占比"] = (
 
 > 图表由当前输入数据生成，重新运行 `main.py` 会覆盖。正式研究时应替换为可靠的官方统计数据。
 
-## 9. 输出文件
+## 9. 交互式看板（app.py）
+
+除了生成静态图表，项目还提供一个基于 **Streamlit + Plotly** 的网页看板，可以在浏览器里筛选、对照和导出数据。
+
+### 9.1 启动
+
+```bash
+python -m streamlit run app.py
+```
+
+启动成功后终端会打印：
+
+```text
+Local URL: http://localhost:8501
+```
+
+用浏览器打开该地址即可；关闭时在 Terminal 按 `Ctrl + C`。
+
+> 前提：`data/processed/gdp_analysis.csv` 必须存在（先运行一次 `python main.py`）。如果文件不存在，页面会直接给出提示，而不是抛出一堆红字报错。
+
+### 9.2 页面能做什么
+
+- **侧边栏筛选**：省份多选、GDP 区间拖动、是否包含「估算值」（中位数填补的记录）
+- **顶部指标卡**：省份数量、GDP 总量、平均 GDP、GDP 第一名
+- **四张交互图**（Plotly，可悬停看数值、框选缩放、下载图片）：GDP 总量排名、人均 GDP、GDP-人口散点、GDP 占比环形图
+- **明细表格**：带列格式（亿元 / 万元每人 / 百分比）和排序
+- **一键导出**：把当前筛选结果下载为 CSV
+
+### 9.3 与 main.py 的关系
+
+```text
+main.py  →  data/processed/gdp_analysis.csv  →  app.py
+```
+
+`app.py` **只读取**分析结果文件，不重新清洗数据，也不会修改或覆盖原始 CSV。想更新看板数据，重新运行 `main.py` 后刷新页面即可。
+
+## 10. 输出文件
 
 成功运行一次 `main.py` 后，程序会生成以下文件：
 
@@ -438,7 +485,7 @@ df["GDP占比"] = (
 ![GDP排名](../charts/gdp_ranking.png)
 ```
 
-## 10. 一次实际运行的结果
+## 11. 一次实际运行的结果
 
 使用项目内的教学示例数据运行：
 
@@ -458,7 +505,7 @@ df["GDP占比"] = (
 
 这些结果仅用于展示程序运行情况，不代表真实经济统计结论。
 
-## 11. GitHub 图片显示规则
+## 12. GitHub 图片显示规则
 
 README 里的图片要能在 GitHub 上显示，必须同时满足三个条件，缺一不可：
 
@@ -505,7 +552,7 @@ git push
 
 > 提示：`git add -f` 可以绕过忽略规则强制加入，但之后每次重新生成图表都要再 `git add` 一次。长期做法还是像本项目一样在 `.gitignore` 里加白名单。
 
-## 12. 数据说明与项目局限性
+## 13. 数据说明与项目局限性
 
 本项目目前属于 Python 数据分析教学项目，存在以下限制：
 
@@ -526,9 +573,9 @@ git push
 - GDP 核算口径；
 - 缺失值处理方法。
 
-## 13. 发布到 GitHub
+## 14. 发布到 GitHub
 
-### 13.1 初始化仓库
+### 14.1 初始化仓库
 
 在项目根目录打开 Terminal：
 
@@ -536,32 +583,32 @@ git push
 git init
 ```
 
-### 13.2 添加文件
+### 14.2 添加文件
 
 ```bash
 git add -A
 ```
 
-### 13.3 提交代码
+### 14.3 提交代码
 
 ```bash
 git commit -m "init: 中国各省 GDP 数据分析（教学项目）"
 ```
 
-### 13.4 关联 GitHub 仓库
+### 14.4 关联 GitHub 仓库
 
 ```bash
 git remote add origin https://github.com/<你的用户名>/China_GDP_Analysis.git
 ```
 
-### 13.5 推送代码
+### 14.5 推送代码
 
 ```bash
 git branch -M main
 git push -u origin main
 ```
 
-### 13.6 文件管理建议
+### 14.6 文件管理建议
 
 `.gitignore` 建议排除：
 
@@ -571,9 +618,9 @@ git push -u origin main
 - `*.pyc`
 - 本地临时文件。
 
-保留项目源码、README、依赖文件、原始教学数据，以及需要展示的图表（见第 11 节）。
+保留项目源码、README、依赖文件、原始教学数据，以及需要展示的图表（见第 12 节）。
 
-## 14. 下一步改进方向
+## 15. 下一步改进方向
 
 本项目可以继续从以下方面升级：
 
