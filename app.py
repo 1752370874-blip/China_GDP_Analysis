@@ -126,14 +126,22 @@ def normalize_province(name) -> str:
     return name
 
 
+def _ring_to_svg_path(ring) -> str:
+    """把一个经纬度环转成 SVG path（M 起点 → L 连点 → Z 闭合）。"""
+    commands = [f"M {ring[0][0]:.6f},{ring[0][1]:.6f}"]
+    for lon, lat in ring[1:]:
+        commands.append(f"L {lon:.6f},{lat:.6f}")
+    commands.append("Z")
+    return " ".join(commands)
+
+
 @st.cache_data(show_spinner=False)
-def load_map_shapes(file_path: str):
-    """把 GeoJSON 转成 {省名: [(lons, lats), ...]}，并返回整体经纬度包围盒。"""
+def load_map_features(file_path: str):
+    """把 GeoJSON 解析成 [(省份, [环, ...]), ...]，每个环是 [[lon, lat], ...]。"""
     with open(file_path, "r", encoding="utf-8") as file:
         geojson = json.load(file)
 
-    shapes = {}
-    all_x, all_y = [], []
+    features = []
 
     for feature in geojson["features"]:
         name = normalize_province(feature["properties"].get("name", ""))
@@ -141,25 +149,19 @@ def load_map_shapes(file_path: str):
             continue
 
         geometry = feature["geometry"]
-        polygons = (
-            [geometry["coordinates"]]
-            if geometry["type"] == "Polygon"
-            else geometry["coordinates"]
-        )
+        geometry_type = geometry["type"]
 
-        rings = []
-        for polygon in polygons:
-            outer = polygon[0]
-            xs = [point[0] for point in outer]
-            ys = [point[1] for point in outer]
-            rings.append((xs, ys))
-            all_x += xs
-            all_y += ys
+        if geometry_type == "Polygon":
+            raw_polygons = [geometry["coordinates"]]
+        elif geometry_type == "MultiPolygon":
+            raw_polygons = geometry["coordinates"]
+        else:
+            continue
 
-        shapes[name] = rings
+        rings = [polygon[0] for polygon in raw_polygons]
+        features.append((name, rings))
 
-    bbox = (min(all_x), min(all_y), max(all_x), max(all_y))
-    return shapes, bbox
+    return features
 
 
 # ==========================================================
@@ -454,15 +456,13 @@ st.divider()
 # ----------------------------------------------------------
 # 中国各省 GDP 地理分布
 # ----------------------------------------------------------
-# 说明：这里不用 go.Choropleth + geojson 匹配，而是把每个省的边界环
-# 转成 (lon, lat) 折线，用 Scatter + fill="toself" 画。
-# 原因：Choropleth 的 geojson 匹配在不同 plotly.js 版本下表现不一致，
-# 而多边形直绘只依赖坐标，行为稳定、可精确控制颜色和悬停内容。
+# 实现方式：把每个省边界拆成独立多边形（岛屿各自一条 path），
+# 用 layout.shapes 的 type="path" 绘制；悬停则由一层透明 trace 承担。
 
 st.subheader("中国各省 GDP 地理分布")
 st.caption(
-    "地图颜色表示当前筛选样本中的 GDP 总量；"
-    "灰色表示没有匹配到当前 GDP 数据，不代表 GDP 为零。"
+    "颜色深浅表示 GDP 总量（色标范围固定为全部样本的最小到最大值，"
+    "筛选后不会变色）；灰色表示没有匹配到当前 GDP 数据，不代表 GDP 为零。"
 )
 
 if not MAP_FILE.exists():
@@ -471,70 +471,90 @@ if not MAP_FILE.exists():
         "请将 china_provinces.geojson 放入 maps 文件夹。"
     )
 else:
-    shapes, bbox = load_map_shapes(str(MAP_FILE))
+    map_features = load_map_features(str(MAP_FILE))
 
-    map_provinces = set(shapes)
-    matched = [p for p in view["省份"] if p in map_provinces]
-    unmatched = sorted(set(view["省份"]) - map_provinces)
+    # 统一省份名称，方便与不同来源的 GeoJSON 对接
+    map_view = view.copy()
+    map_view["地图省份"] = map_view["省份"].apply(normalize_province)
 
-    fig_map = go.Figure()
+    info_by_province = {
+        row["地图省份"]: row
+        for _, row in map_view.iterrows()
+    }
 
-    # 第一层：全国省份灰色底图，保证轮廓完整
-    base_x, base_y = [], []
-    for rings in shapes.values():
-        for xs, ys in rings:
-            base_x += xs + [None]
-            base_y += ys + [None]
+    # 颜色范围固定用完整样本，避免筛选后同一省份变色
+    global_gdp_min = float(df["GDP"].min())
+    global_gdp_max = float(df["GDP"].max())
+    global_span = (global_gdp_max - global_gdp_min) or 1.0
 
-    fig_map.add_trace(
-        go.Scatter(
-            x=base_x,
-            y=base_y,
-            mode="lines",
-            fill="toself",
-            fillcolor="#E9EDF2",
-            line=dict(color="#FFFFFF", width=0.5),
-            hoverinfo="skip",
-            showlegend=False,
-        )
-    )
+    def gdp_color(value: float) -> str:
+        ratio = (value - global_gdp_min) / global_span
+        ratio = min(1.0, max(0.0, ratio))
+        return sample_colorscale("Blues", [0.12 + 0.82 * ratio])[0]
 
-    # 第二层：有数据的省份按 GDP 着色
-    if matched:
-        gdp_min = float(view["GDP"].min())
-        gdp_max = float(view["GDP"].max())
-        span = (gdp_max - gdp_min) or 1.0
+    map_shapes = []
+    hover_lons, hover_lats, hover_texts, hover_colors = [], [], [], []
 
-        for _, row in view[view["省份"].isin(matched)].sort_values("GDP").iterrows():
-            ratio = (row["GDP"] - gdp_min) / span
-            color = sample_colorscale("Blues", [0.15 + 0.8 * ratio])[0]
+    for province, rings in map_features:
+        row = info_by_province.get(province)
 
-            xs_list, ys_list = [], []
-            for xs, ys in shapes[row["省份"]]:
-                xs_list += xs + [None]
-                ys_list += ys + [None]
+        if row is None:
+            fill_color = "#E9EDF2"
+            line_color = "#FFFFFF"
+            line_width = 0.5
+        else:
+            fill_color = gdp_color(float(row["GDP"]))
+            # 估算数据用橙色描边区分
+            is_estimated = row["数据状态"] == "估算数据"
+            line_color = "#F59E0B" if is_estimated else "#FFFFFF"
+            line_width = 1.4 if is_estimated else 0.8
 
-            fig_map.add_trace(
-                go.Scatter(
-                    x=xs_list,
-                    y=ys_list,
-                    mode="lines",
-                    fill="toself",
-                    fillcolor=color,
-                    line=dict(color="#FFFFFF", width=0.8),
-                    showlegend=False,
-                    hovertemplate=(
-                        f"<b>{row['省份']}</b><br>"
-                        f"GDP：{row['GDP']:,.0f} 亿元<br>"
-                        f"人均 GDP：{row['人均GDP']:.2f} 万元/人<br>"
-                        f"排名：{int(row['GDP排名'])}<br>"
-                        f"数据状态：{row['数据状态']}"
-                        "<extra></extra>"
-                    ),
+        # 每个环（包括每个岛屿）各自一条 path，避免跨岛屿连线
+        for ring in rings:
+            map_shapes.append(
+                dict(
+                    type="path",
+                    path=_ring_to_svg_path(ring),
+                    xref="x",
+                    yref="y",
+                    fillcolor=fill_color,
+                    line=dict(color=line_color, width=line_width),
+                    layer="below",
                 )
             )
 
-        # 颜色条：借一条不可见的散点 trace 生成
+        if row is not None and rings:
+            # 悬停点放在该省最大环的几何中心
+            main_ring = max(rings, key=len)
+            lon = sum(point[0] for point in main_ring) / len(main_ring)
+            lat = sum(point[1] for point in main_ring) / len(main_ring)
+            hover_lons.append(lon)
+            hover_lats.append(lat)
+            hover_texts.append(
+                f"<b>{province}</b><br>"
+                f"GDP：{row['GDP']:,.0f} 亿元<br>"
+                f"人均 GDP：{row['人均GDP']:.2f} 万元/人<br>"
+                f"排名：{int(row['GDP排名'])}<br>"
+                f"数据状态：{row['数据状态']}"
+            )
+            hover_colors.append(fill_color)
+
+    fig_map = go.Figure()
+
+    # 悬停层：透明填充，不遮挡下面的 shapes，只负责响应鼠标
+    if hover_lons:
+        fig_map.add_trace(
+            go.Scatter(
+                x=hover_lons,
+                y=hover_lats,
+                mode="markers",
+                marker=dict(size=26, color="rgba(0,0,0,0)"),
+                text=hover_texts,
+                hovertemplate="%{text}<extra></extra>",
+                showlegend=False,
+            )
+        )
+
         fig_map.add_trace(
             go.Scatter(
                 x=[None],
@@ -543,10 +563,10 @@ else:
                 marker=dict(
                     size=0,
                     opacity=0,
-                    color=[gdp_min, gdp_max],
+                    color=[global_gdp_min, global_gdp_max],
                     colorscale="Blues",
-                    cmin=gdp_min,
-                    cmax=gdp_max,
+                    cmin=global_gdp_min,
+                    cmax=global_gdp_max,
                     showscale=True,
                     colorbar=dict(title="GDP（亿元）", thickness=14, len=0.65),
                 ),
@@ -555,13 +575,11 @@ else:
             )
         )
 
+    fig_map.update_layout(shapes=map_shapes)
+
     # 视窗固定在中国大陆范围：南海诸岛的细长多边形若不裁掉，
     # 会在图底部画出一条不自然的横线
-    fig_map.update_xaxes(
-        visible=False,
-        range=[73, 136],
-        fixedrange=True,
-    )
+    fig_map.update_xaxes(visible=False, range=[73, 136], fixedrange=True)
     fig_map.update_yaxes(
         visible=False,
         range=[17, 54],
@@ -579,6 +597,12 @@ else:
 
     st.plotly_chart(fig_map, width="stretch")
 
+    st.caption(
+        "图例：填充色 = GDP 深浅（全局固定色标）｜白色描边 = 原始数据｜"
+        "橙色描边 = 中位数估算数据｜灰色 = 当前筛选无数据"
+    )
+
+    unmatched = sorted(set(map_view["地图省份"]) - {name for name, _ in map_features})
     if unmatched:
         st.caption(f"以下省份在当前地图文件中没有匹配到边界：{'、'.join(unmatched)}")
 
