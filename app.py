@@ -4,9 +4,12 @@
 # 技术：Streamlit + Pandas + Plotly
 # ==========================================================
 
+import json
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from pathlib import Path
 
 # ==========================================================
@@ -31,6 +34,15 @@ DATA_FILE = (
     / "data"
     / "processed"
     / "gdp_analysis.csv"
+)
+
+# 中国省级行政区边界
+# 来源：阿里云 DataV.GeoAtlas（100000_full.json），GCJ-02 坐标系，
+# 仅用于省级区域着色展示，不作为测绘或导航用途。
+MAP_FILE = (
+    BASE_DIR
+    / "maps"
+    / "china_provinces.geojson"
 )
 
 # ==========================================================
@@ -83,6 +95,58 @@ STATUS_COLOR = {
     "原始数据": "#2563EB",
     "估算数据": "#F59E0B",
 }
+
+# ==========================================================
+# 4.1 地图工具函数
+# ==========================================================
+
+
+def normalize_province(name) -> str:
+    """把「广东省 / 广西壮族自治区」统一成「广东 / 广西」。"""
+    if pd.isna(name):
+        return ""
+
+    name = str(name).strip()
+
+    suffixes = [
+        "壮族自治区",
+        "回族自治区",
+        "维吾尔自治区",
+        "特别行政区",
+        "自治区",
+        "省",
+        "市",
+    ]
+
+    for suffix in suffixes:
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+
+    return name
+
+
+@st.cache_data(show_spinner=False)
+def load_geojson(file_path: str) -> dict:
+    """读取 GeoJSON，并给每个 feature 补一个 map_key，用于和 GDP 数据匹配。"""
+    with open(file_path, "r", encoding="utf-8") as file:
+        geojson = json.load(file)
+
+    kept_features = []
+
+    for feature in geojson["features"]:
+        props = feature.get("properties", {})
+        map_key = normalize_province(props.get("name", ""))
+
+        # 没有名称的要素（例如九段线）不参与省份匹配
+        if not map_key:
+            continue
+
+        props["map_key"] = map_key
+        kept_features.append(feature)
+
+    geojson["features"] = kept_features
+    return geojson
+
 
 # ==========================================================
 # 5. 读取数据
@@ -370,6 +434,101 @@ with right2:
     fig_pie.update_traces(textinfo="percent+label")
     fig_pie.update_layout(height=420, margin=dict(l=10, r=10, t=10, b=10))
     st.plotly_chart(fig_pie, width="stretch")
+
+st.divider()
+
+# ----------------------------------------------------------
+# 中国各省 GDP 地理分布
+# ----------------------------------------------------------
+
+st.subheader("中国各省 GDP 地理分布")
+st.caption(
+    "地图颜色表示当前筛选样本中的 GDP 总量；"
+    "灰色表示没有匹配到当前 GDP 数据，不代表 GDP 为零。"
+)
+
+if not MAP_FILE.exists():
+    st.warning(
+        "暂未找到中国省级地图文件，"
+        "请将 china_provinces.geojson 放入 maps 文件夹。"
+    )
+else:
+    geojson = load_geojson(str(MAP_FILE))
+
+    all_map_keys = [
+        feature["properties"]["map_key"]
+        for feature in geojson["features"]
+    ]
+
+    matched = set(view["省份"]) & set(all_map_keys)
+    unmatched = sorted(set(view["省份"]) - set(all_map_keys))
+
+    fig_map = go.Figure()
+
+    # 第一层：全国省份灰色底图
+    # 目的：保证地图轮廓完整，同时不会把「没有数据」误读成「GDP 为零」
+    fig_map.add_trace(
+        go.Choropleth(
+            geojson=geojson,
+            locations=all_map_keys,
+            z=[1] * len(all_map_keys),
+            featureidkey="properties.map_key",
+            colorscale=[[0, "#E9EDF2"], [1, "#E9EDF2"]],
+            showscale=False,
+            marker_line_color="#FFFFFF",
+            marker_line_width=0.8,
+            hoverinfo="skip",
+            name="无数据",
+        )
+    )
+
+    # 第二层：有数据的省份按 GDP 着色
+    if matched:
+        map_df = view[view["省份"].isin(matched)].sort_values("GDP")
+
+        fig_map.add_trace(
+            go.Choropleth(
+                geojson=geojson,
+                locations=map_df["省份"],
+                z=map_df["GDP"],
+                featureidkey="properties.map_key",
+                colorscale="Blues",
+                showscale=True,
+                colorbar=dict(
+                    title="GDP（亿元）",
+                    thickness=14,
+                    len=0.65,
+                ),
+                marker_line_color="#FFFFFF",
+                marker_line_width=0.8,
+                customdata=map_df[
+                    ["省份", "人均GDP", "GDP排名", "数据状态"]
+                ].values,
+                hovertemplate=(
+                    "<b>%{customdata[0]}</b><br>"
+                    "GDP：%{z:,.0f} 亿元<br>"
+                    "人均 GDP：%{customdata[1]:.2f} 万元/人<br>"
+                    "排名：%{customdata[2]}<br>"
+                    "数据状态：%{customdata[3]}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+    # 让地图自动适配边界范围，并隐藏经纬度坐标轴
+    fig_map.update_geos(fitbounds="locations", visible=False)
+    fig_map.update_layout(
+        height=560,
+        margin=dict(l=0, r=0, t=0, b=0),
+        showlegend=False,
+    )
+
+    st.plotly_chart(fig_map, width="stretch")
+
+    if unmatched:
+        st.caption(
+            f"以下省份在当前地图文件中没有匹配到边界：{'、'.join(unmatched)}"
+        )
 
 st.divider()
 

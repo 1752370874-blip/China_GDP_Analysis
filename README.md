@@ -53,6 +53,9 @@ China_GDP_Analysis/
 │       ├── cleaned_gdp.csv
 │       └── gdp_analysis.csv
 │
+├── maps/
+│   └── china_provinces.geojson       # 中国省级行政区边界（GCJ-02）
+│
 ├── output/
 │   ├── charts/
 │   │   ├── gdp_ranking.png
@@ -78,6 +81,7 @@ China_GDP_Analysis/
 |---|---|
 | data/raw/ | 保存原始 CSV 数据 |
 | data/processed/ | 保存清洗和分析后的数据 |
+| maps/ | 保存中国省级行政区 GeoJSON 边界文件 |
 | output/charts/ | 保存数据可视化图表 |
 | output/reports/ | 保存自动生成的分析报告 |
 | _archive/ | 保存学习过程中产生的历史代码 |
@@ -596,6 +600,7 @@ git push
 - GDP 占比分析
 - 省份、区域多选筛选
 - GDP 排名前 10 快速筛选
+- 中国各省 GDP 地理分布地图（颜色深浅表示 GDP 高低）
 - GDP 与人口关系分析
 - 图例区分「原始数据 / 估算数据」，可一键排除估算值
 - 分析数据 CSV 下载
@@ -619,6 +624,30 @@ http://localhost:8501
 注意：网页读取 `data/processed/gdp_analysis.csv`，运行网页之前需要先运行 `main.py`。
 
 区域划分采用国家统计局四大区域口径（东部 10 省、中部 6 省、西部 12 省、东北 3 省）；当前教学数据只覆盖 10 个省份，因此页面上的区域汇总只包含有数据的区域。
+
+### 中国各省 GDP 交互式地图
+
+本项目使用 Plotly + GeoJSON 实现中国省级 GDP 地图。
+
+地图功能：
+
+- 省级行政区边界展示（灰色底图，保证轮廓完整）
+- 有数据的省份按 GDP 深浅着色，悬停可看 GDP、人均 GDP、排名、数据状态
+- 与左侧省份 / 区域 / GDP 区间筛选联动
+- 无数据省份保持灰色，**不会被误读为 GDP 为零**
+
+**地图数据来源**
+
+| 项目 | 内容 |
+| --- | --- |
+| 文件 | `maps/china_provinces.geojson`（约 582 KB） |
+| 来源 | 阿里云 DataV.GeoAtlas：`https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json` |
+| 下载日期 | 2026-11-02 |
+| 内容 | 34 个省级行政区边界（含港澳台） |
+| 坐标系 | GCJ-02（高德坐标系） |
+| 用途限制 | 仅用于省级区域着色展示，**不作为精确测绘、导航或边界认定依据** |
+
+> 地图边界与 GDP 数据是两类独立数据：GDP 来自本项目 `main.py` 生成的教学示例数据，边界来自上述公开数据源，二者不互相校验。
 
 启动后终端会打印 `Local URL`，用浏览器打开即可；关闭时在 Terminal 按 `Ctrl + C`。
 
