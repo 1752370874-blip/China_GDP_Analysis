@@ -55,13 +55,52 @@ st.markdown(
 )
 
 # ==========================================================
-# 4. 读取数据
+# 4. 常量：区域划分与数据状态
 # ==========================================================
+
+# 按国家统计局的四大区域划分（省级行政区）
+REGION_MAP = {
+    "东部": ["北京", "天津", "河北", "上海", "江苏", "浙江", "福建", "山东", "广东", "海南"],
+    "中部": ["山西", "安徽", "江西", "河南", "湖北", "湖南"],
+    "西部": ["内蒙古", "广西", "重庆", "四川", "贵州", "云南", "西藏",
+             "陕西", "甘肃", "青海", "宁夏", "新疆"],
+    "东北": ["辽宁", "吉林", "黑龙江"],
+}
+
+PROVINCE_TO_REGION = {
+    province: region
+    for region, provinces in REGION_MAP.items()
+    for province in provinces
+}
+
+# 把 True / False 换成普通人看得懂的词
+STATUS_MAP = {
+    True: "估算数据",
+    False: "原始数据",
+}
+
+STATUS_COLOR = {
+    "原始数据": "#2563EB",
+    "估算数据": "#F59E0B",
+}
+
+# ==========================================================
+# 5. 读取数据
+# ==========================================================
+
 
 @st.cache_data(show_spinner="正在读取数据…")
 def load_data(path: Path) -> pd.DataFrame:
-    """读取 main.py 生成的分析结果，不做任何清洗。"""
-    return pd.read_csv(path, encoding="utf-8-sig")
+    """读取 main.py 生成的分析结果，并补充区域、数据状态两列。"""
+    df = pd.read_csv(path, encoding="utf-8-sig")
+
+    # 数据状态：True / False → 估算数据 / 原始数据
+    df["数据状态"] = df["GDP是否估算"].map(STATUS_MAP)
+
+    # 区域：省份 → 东部 / 中部 / 西部 / 东北
+    df["区域"] = df["省份"].map(PROVINCE_TO_REGION).fillna("其他")
+
+    return df
 
 
 if not DATA_FILE.exists():
@@ -74,7 +113,7 @@ if not DATA_FILE.exists():
 df = load_data(DATA_FILE)
 
 # ==========================================================
-# 5. 页面标题
+# 6. 页面标题
 # ==========================================================
 
 st.markdown('<div class="main-title">📊 中国各省 GDP 数据分析平台</div>',
@@ -86,7 +125,7 @@ st.markdown(
 st.divider()
 
 # ==========================================================
-# 6. 侧边栏：筛选条件
+# 7. 侧边栏：筛选条件
 # ==========================================================
 
 st.sidebar.header("筛选条件")
@@ -96,6 +135,14 @@ selected = st.sidebar.multiselect(
     "选择省份（可多选）",
     options=all_provinces,
     default=all_provinces
+)
+
+all_regions = [r for r in REGION_MAP if r in set(df["区域"])]
+selected_regions = st.sidebar.multiselect(
+    "选择区域（可多选）",
+    options=all_regions,
+    default=all_regions,
+    help="按国家统计局四大区域划分：东部、中部、西部、东北。"
 )
 
 gdp_min = int(df["GDP"].min())
@@ -114,29 +161,36 @@ include_estimated = st.sidebar.checkbox(
     help="取消勾选可排除 GDP 由中位数估算出来的省份，只看真实观测值。"
 )
 
-st.sidebar.divider()
-st.sidebar.caption(
-    "提示：图表可鼠标悬停查看数值，也可用工具栏下载为图片。"
+top_n_only = st.sidebar.checkbox(
+    "只看 GDP 前 10 名",
+    value=False
 )
 
+st.sidebar.divider()
+st.sidebar.caption("提示：图表可鼠标悬停查看数值，也可用工具栏下载为图片。")
+
 # ==========================================================
-# 7. 应用筛选
+# 8. 应用筛选
 # ==========================================================
 
 view = df[
     df["省份"].isin(selected)
+    & df["区域"].isin(selected_regions)
     & df["GDP"].between(gdp_range[0], gdp_range[1])
 ].copy()
 
 if not include_estimated:
     view = view[view["GDP是否估算"] == False]
 
+if top_n_only:
+    view = view.nlargest(10, "GDP")
+
 if view.empty:
-    st.warning("当前筛选条件下没有数据，请在左侧调整省份或 GDP 区间。")
+    st.warning("当前筛选条件下没有数据，请在左侧调整省份、区域或 GDP 区间。")
     st.stop()
 
 # ==========================================================
-# 8. 关键指标卡片
+# 9. 关键指标卡片
 # ==========================================================
 
 total_gdp = view["GDP"].sum()
@@ -160,37 +214,47 @@ if estimated_count:
 st.divider()
 
 # ==========================================================
-# 9. 图表区
+# 10. 图表区
 # ==========================================================
-
-COLOR_MAP = {False: "#2563EB", True: "#F59E0B"}
 
 left, right = st.columns(2)
 
 with left:
     st.subheader("各省 GDP 总量排名")
+
+    # 先按 GDP 升序排好（横向柱状图：靠下的数值小、靠上的数值大）
+    gdp_chart_df = view.sort_values(by="GDP", ascending=True)
+
     fig_gdp = px.bar(
-        view.sort_values("GDP", ascending=True),
+        gdp_chart_df,
         x="GDP",
         y="省份",
         orientation="h",
-        color="GDP是否估算",
-        color_discrete_map=COLOR_MAP,
+        color="数据状态",
+        color_discrete_map=STATUS_COLOR,
         text="GDP",
-        labels={"GDP": "GDP（亿元）", "省份": "", "GDP是否估算": "是否估算"},
+        labels={"GDP": "GDP（亿元）", "省份": "", "数据状态": "数据状态"},
     )
+
     fig_gdp.update_traces(texttemplate="%{text:,.0f}", textposition="outside")
+
+    # 关键：显式指定纵轴顺序，避免「按颜色分组」把排序打乱
     fig_gdp.update_layout(
+        yaxis=dict(categoryorder="total ascending", title=None),
         height=460,
         margin=dict(l=10, r=30, t=10, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
     )
+
     st.plotly_chart(fig_gdp, width="stretch")
 
 with right:
     st.subheader("各省人均 GDP 对比")
+
+    capita_chart_df = view.sort_values(by="人均GDP", ascending=True)
+
     fig_pc = px.bar(
-        view.sort_values("人均GDP", ascending=True),
+        capita_chart_df,
         x="人均GDP",
         y="省份",
         orientation="h",
@@ -199,15 +263,84 @@ with right:
         text="人均GDP",
         labels={"人均GDP": "人均 GDP（万元/人）", "省份": ""},
     )
+
     fig_pc.update_traces(texttemplate="%{text:.2f}", textposition="outside")
+
     fig_pc.update_layout(
+        yaxis=dict(categoryorder="total ascending", title=None),
         height=460,
         margin=dict(l=10, r=30, t=10, b=10),
         coloraxis_showscale=False,
     )
+
     st.plotly_chart(fig_pc, width="stretch")
 
 st.divider()
+
+# ----------------------------------------------------------
+# 区域分析
+# ----------------------------------------------------------
+
+st.subheader("四大区域 GDP 对比")
+st.caption("区域划分依据国家统计局口径：东部、中部、西部、东北。")
+
+region_df = (
+    view.groupby("区域", as_index=False)
+    .agg(
+        省份数量=("省份", "count"),
+        GDP总量=("GDP", "sum"),
+        人均GDP均值=("人均GDP", "mean"),
+    )
+    .sort_values("GDP总量", ascending=False)
+)
+
+region_df["GDP占比"] = region_df["GDP总量"] / region_df["GDP总量"].sum() * 100
+
+rl, rr = st.columns([3, 2])
+
+with rl:
+    fig_region = px.bar(
+        region_df.sort_values("GDP总量", ascending=True),
+        x="GDP总量",
+        y="区域",
+        orientation="h",
+        text="GDP总量",
+        color="区域",
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        labels={"GDP总量": "GDP 总量（亿元）", "区域": ""},
+    )
+    fig_region.update_traces(texttemplate="%{text:,.0f}", textposition="outside")
+    fig_region.update_layout(
+        yaxis=dict(categoryorder="total ascending", title=None),
+        height=380,
+        margin=dict(l=10, r=30, t=10, b=10),
+        showlegend=False,
+    )
+    st.plotly_chart(fig_region, width="stretch")
+
+with rr:
+    st.dataframe(
+        region_df.rename(columns={
+            "省份数量": "省份数",
+            "GDP总量": "GDP 总量（亿元）",
+            "人均GDP均值": "人均均值（万元/人）",
+            "GDP占比": "占比（%）",
+        }),
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "GDP 总量（亿元）": st.column_config.NumberColumn(format="%,.0f"),
+            "人均均值（万元/人）": st.column_config.NumberColumn(format="%.2f"),
+            "占比（%）": st.column_config.NumberColumn(format="%.1f"),
+        },
+    )
+
+st.divider()
+
+# ----------------------------------------------------------
+# 散点图 + 占比图
+# ----------------------------------------------------------
+
 left2, right2 = st.columns([3, 2])
 
 with left2:
@@ -217,9 +350,10 @@ with left2:
         x="人口",
         y="GDP",
         size="GDP",
-        color="省份",
+        color="数据状态",
+        color_discrete_map=STATUS_COLOR,
         hover_name="省份",
-        labels={"人口": "人口（万人）", "GDP": "GDP（亿元）"},
+        labels={"人口": "人口（万人）", "GDP": "GDP（亿元）", "数据状态": "数据状态"},
     )
     fig_scatter.update_layout(height=420, margin=dict(l=10, r=10, t=10, b=10))
     st.plotly_chart(fig_scatter, width="stretch")
@@ -240,16 +374,18 @@ with right2:
 st.divider()
 
 # ==========================================================
-# 10. 数据表格与导出
+# 11. 数据表格与导出
 # ==========================================================
 
 st.subheader("明细数据")
 
-show_cols = ["省份", "GDP", "人口", "人均GDP", "GDP占比", "GDP排名", "GDP是否估算"]
+show_cols = ["省份", "区域", "GDP", "人口", "人均GDP", "GDP占比", "GDP排名", "数据状态"]
 show_cols = [c for c in show_cols if c in view.columns]
 
+table_df = view.sort_values("GDP排名")[show_cols]
+
 st.dataframe(
-    view.sort_values("GDP排名")[show_cols],
+    table_df,
     width="stretch",
     hide_index=True,
     column_config={
@@ -258,21 +394,18 @@ st.dataframe(
         "人均GDP": st.column_config.NumberColumn("人均 GDP（万元/人）", format="%.2f"),
         "GDP占比": st.column_config.NumberColumn("占比（%）", format="%.2f"),
         "GDP排名": st.column_config.NumberColumn("排名", format="%d"),
-        "GDP是否估算": st.column_config.CheckboxColumn("是否估算"),
     },
 )
 
 st.download_button(
     label="下载当前筛选结果（CSV）",
-    data=view.sort_values("GDP排名")[show_cols].to_csv(
-        index=False, encoding="utf-8-sig"
-    ).encode("utf-8-sig"),
+    data=table_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig"),
     file_name="gdp_view.csv",
     mime="text/csv",
 )
 
 # ==========================================================
-# 11. 页脚说明
+# 12. 页脚说明
 # ==========================================================
 
 st.divider()
