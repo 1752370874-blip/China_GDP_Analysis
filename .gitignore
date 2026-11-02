@@ -1,0 +1,36 @@
+# ===== 虚拟环境 =====
+# 每个人在本机自己建，绝不提交（几百 MB）
+.venv/
+venv/
+env/
+
+# ===== Python 缓存 =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# ===== PyCharm / 编辑器 =====
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# ===== 运行产物 =====
+# 每次运行 main.py 都会重新生成，只保留目录结构（.gitkeep）
+data/processed/*
+!data/processed/.gitkeep
+output/charts/*
+!output/charts/.gitkeep
+output/reports/*
+!output/reports/.gitkeep
+
+# ===== 系统垃圾文件 =====
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ===== 日志与临时文件 =====
+*.log
+*.tmp
