@@ -129,7 +129,11 @@ pandas
 numpy
 matplotlib
 seaborn
+streamlit
+plotly
 ```
+
+前四个是当前 `main.py` 实际用到的库；`streamlit` 和 `plotly` 是为下一步「交互式数据看板」预留的依赖，目前还没有脚本使用它们（详见第 14 节）。
 
 检查 Python 解释器：
 
@@ -580,7 +584,7 @@ git push -u origin main
 5. **程序模块化：** 将清洗、分析和可视化拆分为独立 Python 模块。
 6. **自动化测试：** 为核心计算函数编写测试。
 7. **命令行参数：** 支持自定义输入文件和输出目录。
-8. **交互式仪表盘：** 使用 Streamlit 等工具开发数据展示页面。
+8. **交互式仪表盘：** 使用 Streamlit + Plotly 开发数据展示页面（依赖已在 `requirements.txt` 中，页面待开发）。
 
 ---
 
