@@ -18,11 +18,17 @@ __pycache__/
 *.swp
 
 # ===== 运行产物 =====
-# 每次运行 main.py 都会重新生成，只保留目录结构（.gitkeep）
+# 每次运行 main.py 都会重新生成，默认不提交，只保留目录结构（.gitkeep）
 data/processed/*
 !data/processed/.gitkeep
+
 output/charts/*
 !output/charts/.gitkeep
+# 例外：README 中展示的三张图必须进仓库，否则 GitHub 上会显示为裂图
+!output/charts/gdp_ranking.png
+!output/charts/gdp_per_capita.png
+!output/charts/gdp_population.png
+
 output/reports/*
 !output/reports/.gitkeep
 

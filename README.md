@@ -1,65 +1,128 @@
-# 中国各省 GDP 数据分析（教学项目）
+# 中国各省 GDP 数据分析（China GDP Analysis）
 
-一个用 Python + pandas + matplotlib 完成的入门级数据分析项目：读取省份 GDP 与人口数据，做基础清洗，计算排名、人均 GDP 和占比，输出三张图表和一份 Markdown 分析报告。
+> 基于 Python 的入门级数据分析项目
 
-> **数据声明**：本项目使用的是**教学示例数据**，不是官方统计数据。缺失的 GDP 用中位数补全后会标记为「估算」；这些数值仅用于演示数据清洗与分析流程，不能当作真实 GDP、排名或结论引用。
+## 项目简介
+
+本项目使用 Python 对中国部分省份的 GDP 与人口数据进行读取、清洗、统计分析和可视化。
+
+通过 Pandas、NumPy、Matplotlib 和 Seaborn，完成数据预处理、GDP 排名、人均 GDP 计算、GDP 占比分析，并自动生成三张数据可视化图表和一份 Markdown 分析报告。
+
+**项目主要功能：**
+
+- CSV 数据读取与结构检查
+- 缺失值与重复记录处理
+- GDP 排名计算
+- 人均 GDP 计算
+- GDP 占比分析
+- 数据可视化
+- 自动生成 Markdown 分析报告
+
+> **数据声明：** 本项目当前使用教学示例数据，不是官方统计数据。缺失的 GDP 使用中位数填补，并通过「GDP是否估算」字段进行标记。所有计算结果仅用于演示 Python 数据分析流程，不应作为真实 GDP、经济排名或宏观经济结论引用。
 
 ---
 
 ## 1. 你将学到什么
 
-- 用 `pandas` 读取 CSV，检查结构、缺失值和重复记录
-- 用 `drop_duplicates()` 去重、用 `fillna(median)` 补缺失，并保留「是否估算」标记
-- 计算 GDP 排名、人均 GDP、GDP 占比三类指标
-- 用 `matplotlib` / `seaborn` 出图，并解决中文字体显示问题
-- 自动导出一份 Markdown 分析报告
+通过本项目，可以学习以下 Python 数据分析知识：
 
----
+1. 使用 Pandas 读取 CSV 文件，掌握 `read_csv()`、`head()`、`info()`、`describe()` 等基本操作。
+2. 检查数据缺失情况和重复记录。
+3. 使用 `drop_duplicates()` 删除重复数据。
+4. 使用 `fillna()` 和 `median()` 处理缺失值。
+5. 使用 `pd.to_numeric()` 进行数据类型转换。
+6. 使用 `rank()` 计算 GDP 排名。
+7. 使用 Pandas 完成人均 GDP 和 GDP 占比计算。
+8. 使用 Matplotlib 和 Seaborn 制作统计图表。
+9. 配置 Windows 中文字体，解决图表中文显示问题。
+10. 使用 Python 函数和模块化思想组织程序。
+11. 使用 `main.py` 一键执行整个分析流程。
+12. 自动生成 Markdown 数据分析报告。
 
 ## 2. 项目结构
 
-```
+```text
 China_GDP_Analysis/
+│
 ├── data/
 │   ├── raw/
-│   │   └── china_gdp.csv            # 原始数据（唯一的输入文件）
-│   └── processed/                    # 清洗与分析后的结果（程序生成）
+│   │   └── china_gdp.csv
+│   │
+│   └── processed/
+│       ├── cleaned_gdp.csv
+│       └── gdp_analysis.csv
+│
 ├── output/
-│   ├── charts/                       # 图表（程序生成）
-│   └── reports/                      # Markdown 报告（程序生成）
-├── _archive/                         # 学习过程的中间脚本（只存档，见附录）
-├── main.py                           # 主程序，五个阶段依次执行
-├── requirements.txt                  # 依赖清单
-├── .gitignore                        # 版本库忽略规则
-└── README.md                         # 本文件
+│   ├── charts/
+│   │   ├── gdp_ranking.png
+│   │   ├── gdp_per_capita.png
+│   │   └── gdp_population.png
+│   │
+│   └── reports/
+│       └── GDP_analysis_report.md
+│
+├── _archive/
+│   └── 学习过程中的历史代码
+│
+├── main.py
+├── requirements.txt
+├── .gitignore
+└── README.md
 ```
 
-`.venv/`（虚拟环境）和 `.idea/`（PyCharm 配置）是本机文件，不需要提交到版本库。
+**目录说明：**
 
----
+| 文件或目录 | 作用 |
+|---|---|
+| data/raw/ | 保存原始 CSV 数据 |
+| data/processed/ | 保存清洗和分析后的数据 |
+| output/charts/ | 保存数据可视化图表 |
+| output/reports/ | 保存自动生成的分析报告 |
+| _archive/ | 保存学习过程中产生的历史代码 |
+| main.py | 项目主程序 |
+| requirements.txt | 项目依赖清单 |
+| .gitignore | Git 文件忽略规则 |
+| README.md | 项目说明文档 |
+
+`.venv/` 是 Python 虚拟环境，`.idea/` 是 PyCharm 配置目录，通常不需要上传到 GitHub。
 
 ## 3. 快速开始（Windows / PyCharm）
 
-### 3.1 打开项目并确认解释器
+### 3.1 环境要求
 
-1. **File → Open**，打开 `China_GDP_Analysis` 文件夹本身，而不是单独打开某个 `.py` 文件
-2. **File → Settings → Project → Python Interpreter**，选择项目里的虚拟环境：
+- Windows 操作系统
+- Python 3.10+
+- PyCharm（推荐）
+- Git（可选，用于版本管理）
+
+本项目已在 Python 3.12.10 环境中完成运行验证。
+
+### 3.2 打开项目并配置解释器
+
+在 PyCharm 中：
+
+1. 选择 File → Open。
+2. 打开 `China_GDP_Analysis` 项目根目录。
+3. 进入 File → Settings → Project → Python Interpreter。
+4. 选择项目虚拟环境中的 Python 解释器。
+
+Windows 示例：
 
 ```text
-C:\Users\17523\PyCharmProjects\China_GDP_Analysis\.venv\Scripts\python.exe
+C:\Users\你的用户名\PyCharmProjects\China_GDP_Analysis\.venv\Scripts\python.exe
 ```
 
-如果 `.venv` 不存在，在同一页面新建一个 Virtualenv（Python 3.10+ 均可，本项目在 3.12.10 上验证通过）。
+如果虚拟环境不存在，可以在 PyCharm 中创建新的 Virtualenv。
 
-### 3.2 安装依赖
+### 3.3 安装依赖
 
-在 PyCharm 底部 **Terminal** 里执行（注意提示符前应带 `(.venv)`）：
+打开 PyCharm 底部的 Terminal，执行：
 
-```powershell
+```bash
 python -m pip install -r requirements.txt
 ```
 
-`requirements.txt` 内容为四个包：
+`requirements.txt` 内容：
 
 ```text
 pandas
@@ -68,246 +131,481 @@ matplotlib
 seaborn
 ```
 
-判断终端是否用对了环境：
+检查 Python 解释器：
 
-```powershell
+```bash
 python -c "import sys; print(sys.executable)"
 ```
 
-输出里带 `China_GDP_Analysis\.venv\Scripts\python.exe` 才对；如果指向系统 Python，装完依赖 PyCharm 运行仍会报 `ModuleNotFoundError`。
+确保输出路径指向项目的 `.venv` 环境。
 
-### 3.3 准备数据
+### 3.4 准备数据
 
-把符合格式的 CSV 放到 `data/raw/china_gdp.csv`。`main.py` 通过 `BASE_DIR` 拼接相对路径读取它，所以**与从哪个目录启动无关**，只要求路径和文件名一致。
+将符合要求的 CSV 文件放入：
 
-如果该文件不存在，`main.py` 会自动生成一份教学数据并写入，方便首次运行。
+```text
+data/raw/china_gdp.csv
+```
 
-### 3.4 运行
+如果该文件不存在，程序会自动创建一份教学示例数据，方便首次运行。
 
-在项目树里右键 `main.py` → **Run 'main'**，或终端执行：
+### 3.5 运行项目
 
-```powershell
+在 PyCharm 中右键 `main.py`，选择 Run 'main'。
+
+也可以在 Terminal 中执行：
+
+```bash
 python main.py
 ```
 
-运行成功后，控制台会依次打印五个阶段的输出，并在 `data/processed/`、`output/charts/`、`output/reports/` 生成结果文件。
-
----
+程序将自动完成数据读取、清洗、分析、可视化和报告生成。
 
 ## 4. 数据格式与单位
 
-CSV 表头必须包含三个中文列名（建议 UTF-8-SIG 编码，Excel 打开不乱码）：
+输入 CSV 必须包含以下三个字段：
+
+| 字段 | 含义 | 单位 |
+|---|---|---|
+| 省份 | 省级地区名称 | 无 |
+| GDP | 地区生产总值 | 亿元 |
+| 人口 | 常住人口 | 万人 |
+
+示例数据：
 
 ```csv
 省份,GDP,人口
 广东,135000,12700
 江苏,130000,8500
 湖北,60000,5800
+四川,65000,8300
+浙江,90000,6600
 ```
 
-| 字段 | 含义 | 程序中的用途 |
-| --- | --- | --- |
-| `省份` | 省级地区名称 | 图表标签、报告文字、去重判断依据 |
-| `GDP` | 地区生产总值（亿元） | 排名、占比、人均 GDP 的分子 |
-| `人口` | 常住人口（万人） | 人均 GDP 的分母 |
+建议使用 UTF-8-SIG 编码，减少 Excel 中文乱码问题。
 
-### 单位：本项目算出来的是「万元/人」
+### 人均 GDP 单位换算
 
-`main.py` 里的公式是：
+程序中的计算公式：
 
 ```python
 df["人均GDP"] = df["GDP"] / df["人口"]
 ```
 
-- GDP 单位是**亿元**（10⁸ 元），人口单位是**万人**（10⁴ 人）
-- 亿元 ÷ 万人 = 10⁴ 元/人 = **万元/人**
-- 例如广东：135000 ÷ 12700 ≈ 10.63，即 **10.63 万元/人**
+因为：
 
-> 代码里的单位约定和图表坐标轴标签（`人均 GDP（万元/人）`）是一致的。
-> 如果你更习惯「元/人」，需要写成 `df["GDP"] * 10000 / df["人口"]`，并同时改掉图表标题和报告里的单位说明——**改了公式就必须改标签**，否则数字和标签对不上。
+- GDP 单位是亿元，即 10⁸ 元；
+- 人口单位是万人，即 10⁴ 人。
 
----
+所以：
 
-## 5. 处理流程（`main.py` 的五个阶段）
+$$
+\frac{10^8\ \text{元}}{10^4\ \text{人}} = 10^4\ \text{元/人}
+$$
 
-| 阶段 | 函数 | 做什么 |
-| --- | --- | --- |
-| 一、读取 | `load_data()` | 读 CSV，打印原始数据、`df.info()`、`df.describe()`、行列数 |
-| 二、清洗 | `clean_data()` | 去重、处理缺失值、校验字段、保存 `cleaned_gdp.csv` |
-| 三、分析 | `analyze_data()` | 计算排名/人均/占比，排序，打印统计量，保存 `gdp_analysis.csv` |
-| 四、可视化 | `create_charts()` | 生成三张图，保存到 `output/charts/` |
-| 五、报告 | `generate_report()` | 生成 Markdown 报告，保存到 `output/reports/` |
+最终结果单位为**万元/人**。例如广东：
 
-另外两个辅助函数：`setup_chinese_font()` 负责加载 `C:\Windows\Fonts\msyh.ttc`（微软雅黑）解决中文显示；`create_sample_data()` 在原始 CSV 缺失时自动生成教学数据。
+$$
+135000 \div 12700 \approx 10.63
+$$
 
----
+即约 10.63 万元/人。
 
-## 6. 清洗规则详解
+注意：人均 GDP 不等于居民平均工资或居民实际收入。
 
-`clean_data()` 的执行顺序：
+## 5. 程序结构与数据传递
+
+`main.py` 采用「一个主流程 + 七个函数」的结构，数据在函数之间按固定顺序传递。
+
+### 5.1 数据流
+
+```text
+data/raw/china_gdp.csv
+        │
+        │  load_data()          读取 + 结构检查
+        ▼
+     df_raw ────────────────────────────────► (只打印，不修改)
+        │
+        │  clean_data(df_raw)   去重 / 补缺失 / 加标记列
+        ▼
+    clean_df ───────────────────────────────► data/processed/cleaned_gdp.csv
+        │
+        │  analyze_data(clean_df)   排名 / 人均 / 占比 / 排序
+        ▼
+  analysis_df  +  statistics(字典) ─────────► data/processed/gdp_analysis.csv
+        │                    │
+        │                    └──────────► generate_report(analysis_df, statistics)
+        │                                              ▼
+        └──► create_charts(analysis_df, font) ──► output/charts/*.png
+                                                       │
+                                                       ▼
+                                          output/reports/GDP_analysis_report.md
+```
+
+三个关键点：
+
+1. **每一阶段都返回新对象**，不在函数内部偷偷改上游数据（`clean_data` 内部先 `copy()`）。
+2. **`clean_df` 和 `analysis_df` 是两个不同的 DataFrame**：前者只有清洗后的三列 + 标记列，后者多了排名、人均、占比三列并已排序。
+3. **`statistics` 是一个普通字典**，只装 5 个标量（总量、均值、最大、最小、平均人均），图表和报告各取所需，避免重复计算。
+
+### 5.2 函数签名与参数
+
+| 函数 | 参数 | 返回 | 作用 |
+|---|---|---|---|
+| `setup_chinese_font()` | 无 | `FontProperties` | 依次尝试微软雅黑 / 黑体 / 宋体，返回第一个可用的中文字体，供画图使用 |
+| `create_sample_data()` | 无 | `None` | 若 `china_gdp.csv` 不存在，则写入一份教学数据（含 1 条重复、1 个缺失 GDP） |
+| `load_data()` | 无 | `DataFrame` | 读取 CSV，打印原始数据、`info()`、`describe()`、`shape`，**不改数据** |
+| `clean_data(df)` | `df`：原始 DataFrame（省份/GDP/人口） | 清洗后的 `DataFrame` | 校验字段 → 类型转换 → 去重 → 同省多记录检查 → 标记估算 → 中位数填补 → 删人口缺失 → 写入 `cleaned_gdp.csv` |
+| `analyze_data(df)` | `df`：已清洗的 DataFrame | `(DataFrame, dict)` | 新增 `GDP排名`、`人均GDP`、`GDP占比` 三列并排序，写入 `gdp_analysis.csv`，同时返回 `statistics` 字典 |
+| `create_charts(df, font)` | `df`：已分析的 DataFrame；`font`：中文字体对象 | `None` | 绘制并保存三张图到 `output/charts/`；`font` 用于让标题、坐标轴显示中文 |
+| `generate_report(df, statistics)` | `df`：已分析且已排序的 DataFrame；`statistics`：上一步的字典 | `None` | 生成 Markdown 报告，含关键指标、排名结论和三张图的相对链接 |
+| `main()` | 无 | `None` | 按顺序调用以上函数，统一异常处理，最后打印结果保存位置 |
+
+### 5.3 五阶段对照
+
+| 阶段 | 函数 | 主要功能 |
+|---|---|---|
+| 第一阶段 | `load_data()` | 读取数据、检查数据结构 |
+| 第二阶段 | `clean_data(df)` | 数据清洗与保存 |
+| 第三阶段 | `analyze_data(df)` | 计算排名、人均 GDP 和占比 |
+| 第四阶段 | `create_charts(df, font)` | 生成三张可视化图表 |
+| 第五阶段 | `generate_report(df, statistics)` | 生成 Markdown 分析报告 |
+
+程序通过 `main.py` 实现一键运行。
+
+## 6. 数据清洗规则
+
+数据清洗主要包括以下步骤：
+
+### 6.1 检查缺失值
 
 ```python
-# 1) 统计缺失值与重复行（先看清楚问题，再动手）
 print(df.isnull().sum())
+```
+
+统计每一列的缺失数据数量。
+
+### 6.2 检查重复记录
+
+```python
 print(df[df.duplicated()])
+```
 
-# 2) 删除完全重复的记录
+找出完全重复的记录。
+
+### 6.3 删除重复记录
+
+```python
 df = df.drop_duplicates()
+```
 
-# 3) 同一省份若存在多条不同记录，不擅自合并，直接报错提示人工核对
-dup_prov = df[df.duplicated(subset=["省份"], keep=False)]
+保留唯一记录，避免重复数据影响后续统计。
+
+### 6.4 检查同一省份的多条记录
+
+```python
+dup_prov = df[
+    df.duplicated(subset=["省份"], keep=False)
+]
+
 if not dup_prov.empty:
-    raise ValueError("发现同一省份存在多条不同记录，请先核对数据。")
+    raise ValueError(
+        "发现同一省份存在多条不同记录，请先核对数据。"
+    )
+```
 
-# 4) 补值之前先记录「哪些是估算的」
+如果同一省份存在多条不同数据，程序不会擅自合并，而是要求人工核对。
+
+### 6.5 标记 GDP 缺失记录
+
+```python
 df["GDP是否估算"] = df["GDP"].isna()
+```
 
-# 5) 中位数补全 GDP 缺失值；人口缺失的行无法计算人均，直接删除
-df["GDP"] = df["GDP"].fillna(df["GDP"].median())
+在填补之前记录哪些数据属于估算数据。
+
+### 6.6 使用中位数填补 GDP
+
+```python
+df["GDP"] = df["GDP"].fillna(
+    df["GDP"].median()
+)
+```
+
+中位数相对于均值受极端数值影响较小，适合用于演示缺失值填补方法。
+
+但是，中位数填补不代表官方统计数据的补报方法。
+
+### 6.7 删除人口缺失记录
+
+```python
 df = df.dropna(subset=["人口"])
 ```
 
-几个设计考虑：
+人口缺失时无法计算人均 GDP，因此删除相应记录。
 
-- **先标记、后填补**：`GDP是否估算` 在 `fillna` 之前生成，否则补完就再也分不清哪个是真实值。
-- **只删「完全重复」**：同一省份不同年份、不同口径的数据不能直接删，应先加年份/口径字段。
-- **不自动合并**：同省多条不同记录时选择报错，把判断权交给人。
-- **中位数而非均值**：中位数受极端值影响小，适合课堂演示；它不是任何官方补报方法。
-- **`pd.to_numeric(..., errors="coerce")`**：把无法解析的值变成 `NaN` 而不是直接崩，便于统一处理。
-
----
+其他数据类型转换、无效数值处理及字段检查也在清洗函数中完成。
 
 ## 7. 指标计算
 
+### 7.1 GDP 排名
+
 ```python
-# 数值越大排名越靠前；method="min" 让并列值同名次，后面跳号
-df["GDP排名"] = df["GDP"].rank(ascending=False, method="min").astype(int)
-
-# 人均 GDP（万元/人）
-df["人均GDP"] = df["GDP"] / df["人口"]
-
-# 该省占「本样本」GDP 总量的比例（%）
-df["GDP占比"] = df["GDP"] / df["GDP"].sum() * 100
+df["GDP排名"] = df["GDP"].rank(
+    ascending=False,
+    method="min"
+).astype(int)
 ```
 
-注意三点：
+`ascending=False` 表示按照 GDP 从大到小排名。
 
-1. `rank()` 默认是「小的排第 1」，求「第一名」必须写 `ascending=False`。
-2. `method="min"` 下并列会占同一名次，下一名跳号。例如两个省并列第 5，下一个省是第 7。
-3. `GDP占比` 的分母只是**当前 CSV 里的样本总和**，样本不全时不等于全国占比。
+`method="min"` 表示相同数值采用最小排名。
 
----
+例如：
 
-## 8. 输出文件
+| 省份 | GDP | 排名 |
+|---|---:|---:|
+| 广东 | 135000 | 1 |
+| 江苏 | 130000 | 2 |
+| 四川 | 65000 | 5 |
+| 湖南 | 65000 | 5 |
+| 湖北 | 60000 | 7 |
 
-运行一次 `main.py` 后，会生成：
+### 7.2 人均 GDP
+
+```python
+df["人均GDP"] = df["GDP"] / df["人口"]
+```
+
+计算结果单位为万元/人。
+
+### 7.3 GDP 占比
+
+```python
+df["GDP占比"] = (
+    df["GDP"] / df["GDP"].sum() * 100
+)
+```
+
+计算某省 GDP 占当前样本 GDP 总量的比例。
+
+注意：如果输入数据不包含全部省级地区，这个比例不代表全国 GDP 占比。
+
+## 8. 图表展示
+
+运行一次 `main.py`，三张图会生成在 `output/charts/`。下面就是本项目当前数据跑出来的真实结果。
+
+### 8.1 各省 GDP 总量排名
+
+![各省 GDP 排名](output/charts/gdp_ranking.png)
+
+**怎么读：** 横向柱状图，从下往上是 GDP 由小到大，最上面一条是第一名。柱子的长度差就是总量差——广东（135000）接近安徽（47000）的 3 倍。
+
+### 8.2 各省人均 GDP 对比
+
+![各省人均 GDP 对比](output/charts/gdp_per_capita.png)
+
+**怎么读：** 单位是万元/人。把这张图和 8.1 放在一起看，能直接看出「总量第一 ≠ 人均第一」：广东总量第一，人均约 10.63 万元排第三；江苏总量第二，人均约 15.29 万元却是第一。差别只在分母——人口。
+
+### 8.3 GDP 与人口关系
+
+![GDP 与人口关系](output/charts/gdp_population.png)
+
+**怎么读：** 横轴人口（万人）、纵轴 GDP（亿元），每个点是一个省。越靠右表示人口越多，越靠上表示 GDP 越高；点到原点连线的斜率大致就是该省的人均 GDP。
+
+> 图表由当前输入数据生成，重新运行 `main.py` 会覆盖。正式研究时应替换为可靠的官方统计数据。
+
+## 9. 输出文件
+
+成功运行一次 `main.py` 后，程序会生成以下文件：
 
 | 文件 | 内容 |
-| --- | --- |
-| `data/processed/cleaned_gdp.csv` | 清洗后的数据，含 `GDP是否估算` 标记列 |
-| `data/processed/gdp_analysis.csv` | 分析结果，含排名、人均 GDP、占比 |
-| `output/charts/gdp_ranking.png` | 各省 GDP 总量排名（横向柱状图） |
-| `output/charts/gdp_per_capita.png` | 各省人均 GDP 对比（横向柱状图） |
-| `output/charts/gdp_population.png` | GDP 与人口的关系（散点图） |
-| `output/reports/GDP_analysis_report.md` | Markdown 分析报告，内含三张图的相对链接 |
+|---|---|
+| `data/processed/cleaned_gdp.csv` | 清洗后的数据，包含估算标记 |
+| `data/processed/gdp_analysis.csv` | GDP 排名、人均 GDP、GDP 占比 |
+| `output/charts/gdp_ranking.png` | GDP 排名柱状图 |
+| `output/charts/gdp_per_capita.png` | 人均 GDP 对比图 |
+| `output/charts/gdp_population.png` | GDP 与人口关系散点图 |
+| `output/reports/GDP_analysis_report.md` | 自动生成的 Markdown 分析报告 |
 
-报告用相对路径 `../charts/xxx.png` 引用图片，所以在 GitHub 或 PyCharm 的 Markdown 预览里能直接显示。
+报告中的图表使用相对路径引用，例如：
 
----
+```markdown
+![GDP排名](../charts/gdp_ranking.png)
+```
 
-## 9. 一次实际运行的结果
+## 10. 一次实际运行的结果
 
-用项目内的 `data/raw/china_gdp.csv`（11 行数据，刻意含 1 条重复记录和 1 个缺失 GDP）运行：
+使用项目内的教学示例数据运行：
 
-- 原始 **11 行** → 清洗后 **10 行**
-  - 删除重复的广东 1 条
-  - 湖南 GDP 缺失，用中位数 **65000** 补全，并标记 `GDP是否估算 = True`
-- GDP 总量 **801000 亿元**，平均 **80100 亿元**
-- GDP 排名第一：广东（135000 亿元）；最后一名：安徽（47000 亿元）
-- 人均 GDP 最高：江苏 **15.29 万元/人**；广东总量第一但人均只有 10.63
-- 因为补全值 65000 恰好等于四川的 GDP，湖南与四川**并列第 5**，下一名直接跳到第 7
+- 原始数据：11 行。
+- 清洗后数据：10 行。
+- 删除重复记录：1 条。
+- GDP 缺失记录：1 条。
+- 湖南 GDP 使用中位数 65000 填补。
+- GDP 总量：801000 亿元。
+- 平均 GDP：80100 亿元。
+- GDP 最高值：135000 亿元。
+- GDP 最低值：47000 亿元。
+- GDP 排名第一：广东。
+- 人均 GDP 最高：江苏，约 15.29 万元/人。
 
-最后一条特别值得留意：中位数填补会凭空造出一个「中等水平」的省，可能制造并列名次——写报告时要交代清楚，这也是保留 `GDP是否估算` 列的意义。
+由于湖南填补后的 GDP 恰好与四川相同，因此两省并列第五，下一名为第七。
 
----
+这些结果仅用于展示程序运行情况，不代表真实经济统计结论。
 
-## 10. 结果解读与限制
+## 11. GitHub 图片显示规则
 
-- 中位数填补是演示方法，`GDP是否估算 = True` 的记录必须与真实观测值区分开。
-- 样本只有 10 个省，且为教学数据，不足以支撑宏观结论。
-- 人均 GDP 只反映产出与人口的关系，不能替代居民收入、生活成本或发展质量等指标。
-- 不同统计年份、行政范围、核算口径（当年价 / 不变价）、人口口径（常住 / 户籍）不能直接混合比较。
-- 图表只描述当前输入样本，不能证明因果关系。
-- 使用公开数据时，应记录来源、发布日期、统计年份、单位和处理规则。
+README 里的图片要能在 GitHub 上显示，必须同时满足三个条件，缺一不可：
 
----
+1. **路径是仓库内的相对路径**（本项目用 `output/charts/xxx.png`）；
+2. **图片文件真的被提交进了仓库**；
+3. **提交时的分支与 README 所在分支一致**（都是 `main`）。
 
-## 11. 发布到 GitHub
+最容易出问题的就是第 2 条：**本地图片正常，线上却是裂图**。原因几乎都是 `.gitignore` 把 `output/` 整个忽略了——文件在本机存在，但从未进入 Git。
 
-1. 在 GitHub 新建空仓库，例如 `China_GDP_Analysis`（不要勾选自动生成 README）
-2. 项目根目录已经内置 `.gitignore`，它会自动排除虚拟环境、缓存、PyCharm 配置和运行产物
-3. 在项目根目录执行：
+本项目采用的规则是「默认忽略运行产物，只白名单三张需要展示的图」：
 
-```powershell
+```gitignore
+output/charts/*
+!output/charts/.gitkeep
+!output/charts/gdp_ranking.png
+!output/charts/gdp_per_capita.png
+!output/charts/gdp_population.png
+```
+
+这样既不会被一堆临时图污染仓库，又能保证 README 里的三张图始终可用。
+
+### 自查三步
+
+```bash
+# 1) 图片是否已进入版本库（应列出三张 png）
+git ls-files output/charts
+
+# 2) 是否被 .gitignore 拦住（应无输出，说明未被忽略）
+git check-ignore -v output/charts/gdp_ranking.png
+
+# 3) 已推到远端后，检查原始文件能否访问
+# 浏览器打开：https://raw.githubusercontent.com/<用户名>/<仓库>/main/output/charts/gdp_ranking.png
+```
+
+如果第 1 步没列出图片，但本地确实有文件，就执行：
+
+```bash
+git add -f output/charts/gdp_ranking.png
+git add -f output/charts/gdp_per_capita.png
+git add -f output/charts/gdp_population.png
+git commit -m "docs: 加入图表，供 README 展示"
+git push
+```
+
+> 提示：`git add -f` 可以绕过忽略规则强制加入，但之后每次重新生成图表都要再 `git add` 一次。长期做法还是像本项目一样在 `.gitignore` 里加白名单。
+
+## 12. 数据说明与项目局限性
+
+本项目目前属于 Python 数据分析教学项目，存在以下限制：
+
+1. 数据为教学示例数据，并非官方统计数据。
+2. GDP 缺失值使用中位数填补，可能影响排名和统计结果。
+3. 样本省份数量有限，不能代表全国经济情况。
+4. 人均 GDP 不能替代居民收入、生活成本或发展质量等指标。
+5. GDP 与人口之间的关系不能仅凭散点图推断因果关系。
+6. 不同年份、不同统计口径的数据不能直接混合比较。
+
+未来使用真实统计数据时，应注明：
+
+- 数据来源；
+- 统计年份；
+- 发布日期；
+- 数据单位；
+- 人口统计口径；
+- GDP 核算口径；
+- 缺失值处理方法。
+
+## 13. 发布到 GitHub
+
+### 13.1 初始化仓库
+
+在项目根目录打开 Terminal：
+
+```bash
 git init
+```
+
+### 13.2 添加文件
+
+```bash
 git add -A
+```
+
+### 13.3 提交代码
+
+```bash
 git commit -m "init: 中国各省 GDP 数据分析（教学项目）"
+```
+
+### 13.4 关联 GitHub 仓库
+
+```bash
 git remote add origin https://github.com/<你的用户名>/China_GDP_Analysis.git
+```
+
+### 13.5 推送代码
+
+```bash
 git branch -M main
 git push -u origin main
 ```
 
-也可以用 PyCharm：**Git → GitHub → Share Project on GitHub**。
+### 13.6 文件管理建议
 
-### `.gitignore` 保护了什么
+`.gitignore` 建议排除：
 
-会提交的只有源码和原始数据：
+- `.venv/`
+- `.idea/`
+- `__pycache__/`
+- `*.pyc`
+- 本地临时文件。
+
+保留项目源码、README、依赖文件、原始教学数据，以及需要展示的图表（见第 11 节）。
+
+## 14. 下一步改进方向
+
+本项目可以继续从以下方面升级：
+
+1. **真实数据接入：** 使用国家统计局或各省统计年鉴中的公开数据。
+2. **跨年度分析：** 增加年份字段，分析各省 GDP 变化趋势。
+3. **区域分析：** 使用 `groupby()` 对东部、中部、西部和东北地区进行分组统计。
+4. **数据可视化升级：** 增加 GDP 增长率、区域对比和交互式图表。
+5. **程序模块化：** 将清洗、分析和可视化拆分为独立 Python 模块。
+6. **自动化测试：** 为核心计算函数编写测试。
+7. **命令行参数：** 支持自定义输入文件和输出目录。
+8. **交互式仪表盘：** 使用 Streamlit 等工具开发数据展示页面。
+
+---
+
+## 附录：学习过程中的历史代码
+
+`_archive/` 文件夹用于保存学习过程中的中间脚本，不参与当前主程序运行。
+
+其中部分旧脚本仍然使用历史文件名 `data/raw/gdp_data.csv`，而当前项目统一使用：
 
 ```text
-.gitignore
-README.md
-main.py
-requirements.txt
 data/raw/china_gdp.csv
-data/processed/.gitkeep
-output/charts/.gitkeep
-output/reports/.gitkeep
 ```
 
-被排除的：`.venv/`（几百 MB）、`.idea/`、`*.iml`、`__pycache__/`、`*.pyc`、`Thumbs.db`，以及 `data/processed/`、`output/charts/`、`output/reports/` 里运行生成的文件（保留 `.gitkeep` 让空目录存在）。
+因此，旧脚本直接运行时可能出现 `FileNotFoundError`。
 
-这样别人克隆仓库后，`pip install -r requirements.txt` 再跑一次 `python main.py`，就能得到和你一样的图表和报告。
+保留这些文件的主要目的是记录项目从基础 Python 练习逐步发展为完整数据分析项目的过程。
 
-> 如果想让图表和报告也作为成果示例提交，用 `git add -f output/charts/*.png` 强制加入即可。
-
-
----
-
-## 12. 下一步可以练什么
-
-- 给数据加 `年份` 字段，做跨年份趋势分析
-- 用 `groupby` 按区域（东/中/西部）分组聚合
-- 把 `clean_data()`、`analyze_data()` 拆成独立模块，并为关键计算写测试
-- 报告里补上数据来源、样本量、估算记录数和运行耗时
-- 用命令行参数指定输入文件和输出目录，例如 `python main.py --input data/raw/xxx.csv`
-- 换成真实、可追溯的公开统计数据（国家统计局或各省统计年鉴），并记录统计口径
+如果不需要保存学习记录，可以删除整个 `_archive/` 文件夹，不影响 `main.py` 的正常运行。
 
 ---
 
-## 附录：`_archive/` 里的学习过程脚本
+**项目名称：** China GDP Analysis
 
-这些是项目一步步长起来的中间版本，**只作存档，不参与运行**（`main.py` 不 import 它们）。
+**项目类型：** Python 数据分析教学项目
 
-> ⚠️ 注意：其中部分脚本引用的是旧文件名 `data/raw/gdp_data.csv`（现已改名为 `china_gdp.csv`），照原样运行会报 `FileNotFoundError`。
+**主要技术：** Python、Pandas、NumPy、Matplotlib、Seaborn
 
-| 文件 | 阶段 | 说明 |
-| --- | --- | --- |
-| `数据经济.py` | 第 1 天 | 最初版本：字典造数据 → 人均 GDP → 排名 → 排序 → `describe` + 变异系数 |
-| `数据经济_新手版.py` | 第 1 天 | 同一份代码的注释加强版，每一步都有 `print` |
-| `day2_csv.py` | 第 2 天 | `read_csv`、`head` / `shape` / `dtypes` / `info`、缺失值与重复值检查 |
-| `day3_cleaning.py` | 第 3 天 | 清洗入门：去重、缺失值处理 |
-| `data_cleaning.py` | 第 3–4 天 | 把清洗逻辑整理成函数 |
-| `data_analysis.py` | 第 4 天 | 读取清洗结果，计算排名与人均 GDP |
-| `visualization.py` | 第 4 天 | matplotlib + seaborn 出图、中文字体配置 |
-
-这些逻辑后来都被合并进了 `main.py` 的五个阶段函数。保留它们的意义是能对比「同一个需求，代码是怎么从单文件长成工程结构的」；不需要的话，直接删除整个 `_archive/` 目录即可，不影响运行。
+**项目目标：** 学习数据读取、清洗、统计分析、可视化和自动化报告生成。
